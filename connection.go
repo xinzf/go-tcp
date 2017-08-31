@@ -116,6 +116,15 @@ func (this *Connection) monitor() {
 	this.handleReceive()
 	this.handleRead()
 	this.handleSend()
+	go func () {
+		for{
+			select{
+			case <-this.server.serverCtx.Done():
+				this.Close()
+				return
+			}
+		}
+	}
 }
 
 func (this *Connection) Send(p Packeter) error {
