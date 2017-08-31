@@ -2,6 +2,7 @@ package tcp
 
 import (
 	"context"
+	"log"
 	"net"
 	"sync"
 )
@@ -31,11 +32,13 @@ func (this *server) SetProtocolManager(m ProtocolManager) {
 func (this *server) Start() error {
 	addr, err := net.ResolveTCPAddr("tcp4", Options.Addr)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 
 	l, err := net.ListenTCP("tcp4", addr)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 
@@ -62,7 +65,7 @@ func (this *server) accept() {
 	for {
 		c, err := this.l.AcceptTCP()
 		if err != nil {
-			// logger
+			log.Println(err)
 			return
 		}
 
@@ -78,5 +81,8 @@ func (this *server) Shutdown() {
 func (this *server) close() {
 	this.closeOnce.Do(func() {
 		this.l.Close()
+		if Options.Debug {
+			log.Println("tcp server has shutdown")
+		}
 	})
 }

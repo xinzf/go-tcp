@@ -2,7 +2,8 @@ package tcp
 
 import (
 	"errors"
-	// "fmt"
+	"fmt"
+	"log"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -30,6 +31,9 @@ func NewConnection(s *server, conn *net.TCPConn) *Connection {
 	c.Info.LocalAddr = conn.LocalAddr().String()
 	c.Info.Extended = make(map[string]interface{})
 	c.eventer.OnConnection(c)
+	if Options.Debug {
+		log.Println(fmt.Sprintf("new client:%s connected", c.Info.RemoteAddr))
+	}
 	return c
 }
 
@@ -52,6 +56,12 @@ type Connection struct {
 
 func (this *Connection) handleRead() {
 	go func() {
+		defer func() {
+			if Options.Debug {
+				log.Println("read handle goroutine has exit")
+			}
+		}()
+
 		for {
 			select {
 			case p, ok := <-this.receiveChan:
@@ -68,6 +78,12 @@ func (this *Connection) handleRead() {
 
 func (this *Connection) handleReceive() {
 	go func() {
+		defer func() {
+			if Options.Debug {
+				log.Println("receive handle goroutine has exit")
+			}
+		}()
+
 		for {
 			packet, err := this.reader.Read(this.conn)
 			if err != nil {
@@ -84,6 +100,12 @@ func (this *Connection) handleReceive() {
 
 func (this *Connection) handleSend() {
 	go func() {
+		defer func() {
+			if Options.Debug {
+				log.Println("send handle goroutine has exit")
+			}
+		}()
+
 		for {
 			select {
 			case p, ok := <-this.sendChan:
@@ -116,15 +138,15 @@ func (this *Connection) monitor() {
 	this.handleReceive()
 	this.handleRead()
 	this.handleSend()
-	go func () {
-		for{
-			select{
+	go func() {
+		for {
+			select {
 			case <-this.server.serverCtx.Done():
 				this.Close()
 				return
 			}
 		}
-	}
+	}()
 }
 
 func (this *Connection) Send(p Packeter) error {
@@ -143,6 +165,9 @@ func (this *Connection) Close() {
 
 	this.closeOnce.Do(func() {
 		atomic.StoreInt32(&this.closeFlag, 1)
+		if Options.Debug {
+			log.Println(fmt.Sprintf("client:%s has closed", this.Info.RemoteAddr))
+		}
 		close(this.sendChan)
 		close(this.receiveChan)
 		this.conn.Close()

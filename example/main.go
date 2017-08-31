@@ -24,7 +24,7 @@ func (this *Callback) OnConnection(conn *tcp.Connection) error {
 		"id":   "conn id",
 		"name": "user name",
 	}
-	fmt.Println(conn.Info)
+	// fmt.Println(conn.Info)
 	return nil
 }
 
@@ -116,6 +116,7 @@ func main() {
 	tcp.Options.AcceptConcurrent = 10
 	tcp.Options.ReceiveChanLimit = 100
 	tcp.Options.SendChanLimit = 100
+	tcp.Options.Debug = true
 
 	ctx, _ := context.WithCancel(context.Background())
 
