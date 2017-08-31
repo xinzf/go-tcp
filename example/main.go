@@ -21,8 +21,8 @@ type Callback struct{}
 
 func (this *Callback) OnConnection(conn *tcp.Connection) error {
 	conn.Info.Extended = map[string]interface{}{
-		"id":   "fsdfsdf",
-		"name": "xiangzhi",
+		"id":   "conn id",
+		"name": "user name",
 	}
 	fmt.Println(conn.Info)
 	return nil
