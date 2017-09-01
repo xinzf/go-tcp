@@ -4,25 +4,16 @@ import (
 	"net"
 )
 
-type ProtocolManager interface {
-	GetEventer(args ...interface{}) Eventer
-	GetPacketer(args ...interface{}) Packeter
-	GetReader(args ...interface{}) Reader
-}
+type OnConnect func(conn *Connection) error
 
-type Eventer interface {
-	OnConnection(conn *Connection) error
-	OnMessage(conn *Connection, packet Packeter)
-	OnClose(conn *Connection)
-}
+type OnMessage func(conn *Connection, packet Packet)
 
-type Packeter interface {
-	Serialize() []byte
-	String() string
-	Size() int
-	Close() bool
-}
+type OnClose func(conn *Connection)
 
-type Reader interface {
-	Read(conn *net.TCPConn) (Packeter, error)
+type PacketRead func(conn *net.TCPConn) (Packet, error)
+
+type Packet struct {
+	Data  []byte
+	Size  int
+	Close bool
 }

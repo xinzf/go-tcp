@@ -17,16 +17,31 @@ func NewServer(ctx context.Context) *server {
 }
 
 type server struct {
-	globalCtx    context.Context
-	serverCtx    context.Context
-	stopSignal   context.CancelFunc
-	protoManager ProtocolManager
-	l            *net.TCPListener
-	closeOnce    sync.Once
+	globalCtx  context.Context
+	serverCtx  context.Context
+	stopSignal context.CancelFunc
+	onConnect  OnConnect
+	onMessage  OnMessage
+	onClose    OnClose
+	packetRead PacketRead
+	l          *net.TCPListener
+	closeOnce  sync.Once
 }
 
-func (this *server) SetProtocolManager(m ProtocolManager) {
-	this.protoManager = m
+func (this *server) SetOnConnect(fun OnConnect) {
+	this.onConnect = fun
+}
+
+func (this *server) SetOnMessage(fun OnMessage) {
+	this.onMessage = fun
+}
+
+func (this *server) SetOnClose(fun OnClose) {
+	this.onClose = fun
+}
+
+func (this *server) SetPacketRead(fun PacketRead) {
+	this.packetRead = fun
 }
 
 func (this *server) Start() error {
@@ -70,7 +85,12 @@ func (this *server) accept() {
 		}
 
 		conn := NewConnection(this, c)
-		conn.monitor()
+		er := this.onConnect(conn)
+		if er != nil {
+			conn.Close()
+		} else {
+			conn.monitor()
+		}
 	}
 }
 

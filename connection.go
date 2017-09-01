@@ -19,18 +19,14 @@ var (
 func NewConnection(s *server, conn *net.TCPConn) *Connection {
 	c := &Connection{
 		server:      s,
-		eventer:     s.protoManager.GetEventer(),
-		reader:      s.protoManager.GetReader(),
-		packeter:    s.protoManager.GetPacketer(),
 		conn:        conn,
-		receiveChan: make(chan Packeter, Options.ReceiveChanLimit),
-		sendChan:    make(chan Packeter, Options.SendChanLimit),
+		receiveChan: make(chan Packet, Options.ReceiveChanLimit),
+		sendChan:    make(chan Packet, Options.SendChanLimit),
 	}
 
 	c.Info.RemoteAddr = conn.RemoteAddr().String()
 	c.Info.LocalAddr = conn.LocalAddr().String()
 	c.Info.Extended = make(map[string]interface{})
-	c.eventer.OnConnection(c)
 	if Options.Debug {
 		log.Println(fmt.Sprintf("new client:%s connected", c.Info.RemoteAddr))
 	}
@@ -40,13 +36,10 @@ func NewConnection(s *server, conn *net.TCPConn) *Connection {
 type Connection struct {
 	server      *server
 	conn        *net.TCPConn
-	receiveChan chan Packeter
-	sendChan    chan Packeter
+	receiveChan chan Packet
+	sendChan    chan Packet
 	closeOnce   sync.Once
 	closeFlag   int32
-	eventer     Eventer
-	reader      Reader
-	packeter    Packeter
 	Info        struct {
 		RemoteAddr string
 		LocalAddr  string
@@ -70,7 +63,7 @@ func (this *Connection) handleRead() {
 					return
 				}
 
-				this.eventer.OnMessage(this, p)
+				this.server.onMessage(this, p)
 			}
 		}
 	}()
@@ -85,13 +78,13 @@ func (this *Connection) handleReceive() {
 		}()
 
 		for {
-			packet, err := this.reader.Read(this.conn)
+			packet, err := this.server.packetRead(this.conn)
 			if err != nil {
 				this.Close()
 				return
 			}
 
-			if packet.Size() > 0 {
+			if packet.Size > 0 {
 				this.receiveChan <- packet
 			}
 		}
@@ -114,18 +107,18 @@ func (this *Connection) handleSend() {
 					return
 				}
 
-				size, err := this.conn.Write(p.Serialize())
+				size, err := this.conn.Write(p.Data)
 				if err != nil {
 					this.Close()
 					return
 				}
 
-				if size != p.Size() {
+				if size != p.Size {
 					this.Close()
 					return
 				}
 
-				if p.Close() == true {
+				if p.Close == true {
 					this.Close()
 					return
 				}
@@ -149,7 +142,7 @@ func (this *Connection) monitor() {
 	}()
 }
 
-func (this *Connection) Send(p Packeter) error {
+func (this *Connection) Send(p Packet) error {
 	select {
 	case this.sendChan <- p:
 		return nil
@@ -171,7 +164,7 @@ func (this *Connection) Close() {
 		close(this.sendChan)
 		close(this.receiveChan)
 		this.conn.Close()
-		this.eventer.OnClose(this)
+		this.server.onClose(this)
 	})
 }
 
